@@ -1,0 +1,71 @@
+import heapq
+
+class PuzzleState:
+    def __init__(self, board, g=0, parent=None):
+        self.board = board
+        self.g = g
+        self.parent = parent
+        self.blank_pos = board.index(0)
+
+    def __lt__(self, other):
+        return False
+
+def get_neighbors(state):
+    neighbors = []
+    x, y = state.blank_pos // 3, state.blank_pos % 3
+    moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    for dx, dy in moves:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < 3 and 0 <= ny < 3:
+            new_blank = nx * 3 + ny
+            new_board = list(state.board)
+            new_board[state.blank_pos], new_board[new_blank] = new_board[new_blank], new_board[state.blank_pos]
+            neighbors.append(PuzzleState(tuple(new_board), state.g + 1, state))
+    return neighbors
+
+def h_misplaced(board, goal):
+    return sum(1 for i in range(9) if board[i] != 0 and board[i] != goal[i])
+
+def h_manhattan(board, goal):
+    dist = 0
+    for i in range(9):
+        val = board[i]
+        if val != 0:
+            target_idx = goal.index(val)
+            dist += abs(i // 3 - target_idx // 3) + abs(i % 3 - target_idx % 3)
+    return dist
+
+def a_star(start_board, goal_board, heuristic_fn):
+    start_state = PuzzleState(start_board)
+    open_list = [(heuristic_fn(start_board, goal_board), start_state)]
+    closed_set = set()
+   
+    while open_list:
+        f, current = heapq.heappop(open_list)
+       
+        if current.board == goal_board:
+            path = []
+            while current:
+                path.append(current.board)
+                current = current.parent
+            return path[::-1]
+           
+        if current.board in closed_set:
+            continue
+        closed_set.add(current.board)
+       
+        for neighbor in get_neighbors(current):
+            if neighbor.board not in closed_set:
+                f_val = neighbor.g + heuristic_fn(neighbor.board, goal_board)
+                heapq.heappush(open_list, (f_val, neighbor))
+               
+    return None
+
+start = (1, 2, 3, 0, 4, 6, 7, 5, 8)
+goal = (1, 2, 3, 4, 5, 6, 7, 8, 0)
+
+path_misplaced = a_star(start, goal, h_misplaced)
+path_manhattan = a_star(start, goal, h_manhattan)
+
+print("Misplaced Tiles Path Length:", len(path_misplaced) - 1 if path_misplaced else "No solution")
+print("Manhattan Distance Path Length:", len(path_manhattan) - 1 if path_manhattan else "No solution")
